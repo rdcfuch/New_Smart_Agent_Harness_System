@@ -109,3 +109,21 @@ def tool_edit():
     result = registry.execute("edit_file", path=path, old_text=old_text, new_text=new_text)
 
     return jsonify(result.to_dict())
+
+
+@bp.route("/search", methods=["POST"])
+def tool_search():
+    """Web search via Serper API."""
+    from app.services.tool_registry import get_tool_registry
+
+    data = request.json
+    query = data.get("query")
+    num_results = data.get("num_results", 10)
+
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+
+    registry = get_tool_registry()
+    result = registry.execute("search", query=query, num_results=num_results)
+
+    return jsonify(result.to_dict())

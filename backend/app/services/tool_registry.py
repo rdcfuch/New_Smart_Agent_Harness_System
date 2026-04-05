@@ -1,8 +1,11 @@
 import os
 import subprocess
 import re
+import json
 from pathlib import Path
 from typing import Optional
+import urllib.request
+import urllib.parse
 
 
 WORKDIR = Path("/Users/jackyfox/New_Smart_Agent_Harness_System/backend")
@@ -39,6 +42,7 @@ class ToolRegistry:
             "read_file": self.read_file,
             "write_file": self.write_file,
             "edit_file": self.edit_file,
+            "search": self.run_search,
         }
         self.dangerous_patterns = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
 
@@ -107,6 +111,41 @@ class ToolRegistry:
         except Exception as e:
             return ToolResult(False, error=str(e))
 
+    def run_search(self, query: str, num_results: int = 10) -> ToolResult:
+        """Search the web using Serper API."""
+        api_key = os.getenv("SERPER_API_KEY")
+        if not api_key:
+            return ToolResult(False, error="SERPER_API_KEY not configured")
+
+        try:
+            url = "https://google.serper.dev/search"
+            payload = json.dumps({"q": query, "num_results": num_results}).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=payload,
+                headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                data = json.loads(response.read().decode("utf-8"))
+
+            results = data.get("organic", [])
+            if not results:
+                return ToolResult(True, output="No results found")
+
+            output = []
+            for r in results[:num_results]:
+                title = r.get("title", "")
+                snippet = r.get("snippet", "")
+                link = r.get("link", "")
+                output.append(f"- {title}\n  {snippet}\n  {link}")
+
+            return ToolResult(True, output="\n\n".join(output))
+        except urllib.error.HTTPError as e:
+            return ToolResult(False, error=f"HTTP error: {e.code} {e.reason}")
+        except Exception as e:
+            return ToolResult(False, error=str(e))
+
     def list_tools(self) -> list:
         """List all available tools."""
         return [
@@ -142,6 +181,14 @@ class ToolRegistry:
                     "path": {"type": "string", "required": True},
                     "old_text": {"type": "string", "required": True},
                     "new_text": {"type": "string", "required": True},
+                },
+            },
+            {
+                "name": "search",
+                "description": "Search the web using Serper API",
+                "params": {
+                    "query": {"type": "string", "required": True, "description": "Search query"},
+                    "num_results": {"type": "integer", "required": False, "description": "Number of results (default 10)"},
                 },
             },
         ]

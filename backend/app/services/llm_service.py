@@ -41,6 +41,18 @@ TOOLS = [
             },
             "required": ["command"]
         }
+    },
+    {
+        "name": "search",
+        "description": "Search the web using Serper API",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "num_results": {"type": "integer", "description": "Number of results (default 10)"}
+            },
+            "required": ["query"]
+        }
     }
 ]
 
